@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filme Misterioso 🎬</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+
+    {% verbatim %}
+    <div id="app" class="flex-grow flex flex-col items-center py-10 px-4">
+        
+        <!-- Header -->
+        <header class="mb-10 text-center">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">Filme Misterioso 🎲</h1>
+            <p class="text-gray-500">Descubra uma pérola escondida no seu streaming favorito.</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="w-full max-w-4xl space-y-8">
+            
+            <!-- Step 1: Select Stream -->
+            <section class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md">
+                <h2 class="text-xl font-semibold mb-6 flex items-center">
+                    <span class="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">1</span>
+                    Escolha o Streaming
+                </h2>
+                
+                <div v-if="loadingStreams" class="flex justify-center py-4">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                </div>
+
+                <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    <div 
+                        v-for="stream in streams" 
+                        :key="stream.id"
+                        @click="selectStream(stream)"
+                        :class="['cursor-pointer rounded-xl p-4 flex flex-col items-center justify-center border-2 transition-all duration-200 h-32', 
+                            selectedStream?.id === stream.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-100 hover:border-blue-300 hover:bg-gray-50']"
+                    >
+                        <img v-if="stream.icon" :src="stream.icon" :alt="stream.name" class="w-12 h-12 mb-3 object-contain">
+                        <div v-else class="w-12 h-12 mb-3 bg-gray-200 rounded-full flex items-center justify-center text-gray-400">?</div>
+                        <span class="text-sm font-medium capitalize text-center">{{ stream.name }}</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Select Genre -->
+            <transition name="fade">
+                <section v-if="selectedStream" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md">
+                    <h2 class="text-xl font-semibold mb-6 flex items-center">
+                        <span class="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">2</span>
+                        Escolha o Gênero
+                    </h2>
+
+                    <div v-if="loadingGenres" class="flex justify-center py-4">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    </div>
+
+                    <div v-else class="flex flex-wrap gap-3">
+                        <button 
+                            v-for="genre in genres" 
+                            :key="genre.id"
+                            @click="selectGenre(genre)"
+                            :class="['px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 border', 
+                                selectedGenre?.id === genre.id ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600']"
+                        >
+                            {{ genre.name }}
+                        </button>
+                    </div>
+                </section>
+            </transition>
+
+            <!-- Step 3: Action -->
+            <transition name="fade">
+                <div v-if="selectedStream && selectedGenre" class="flex justify-center pt-4">
+                    <button 
+                        @click="getRecommendation" 
+                        :disabled="loadingRecommendation"
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-10 rounded-xl shadow-lg transform transition hover:-translate-y-1 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-lg"
+                    >
+                        <span v-if="loadingRecommendation" class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></span>
+                        {{ loadingRecommendation ? 'Buscando...' : '🎲 Gerar Filme Misterioso' }}
+                    </button>
+                </div>
+            </transition>
+
+            <!-- Result Modal -->
+            <div v-if="showResult && recommendedMovie" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm" @click.self="closeResult">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden transform transition-all animate-fade-in-up">
+                    <div class="relative">
+                        <!-- Close Button -->
+                        <button @click="closeResult" class="absolute top-4 right-4 z-10 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <!-- Movie Image/Banner -->
+                        <div class="h-64 sm:h-80 bg-gray-200 w-full relative">
+                            <img v-if="recommendedMovie.image" :src="recommendedMovie.image" class="w-full h-full object-cover">
+                            <div v-else class="w-full h-full flex items-center justify-center bg-gray-800 text-gray-500">
+                                <span class="text-4xl">🎬</span>
+                            </div>
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6 pt-20">
+                                <h2 class="text-3xl font-bold text-white leading-tight">{{ recommendedMovie.title }}</h2>
+                                <div class="flex items-center mt-2 space-x-4">
+                                    <span class="bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">IMDb {{ recommendedMovie.rating }}</span>
+                                    <span class="text-gray-200 text-sm">{{ recommendedMovie.genre_name }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-8">
+                        <p class="text-gray-600 text-lg leading-relaxed mb-6">{{ recommendedMovie.description }}</p>
+                        
+                        <div class="border-t border-gray-100 pt-6">
+                            <p class="text-sm text-gray-400 mb-3 uppercase tracking-wide font-semibold">Disponível em:</p>
+                            <div class="flex flex-wrap gap-2">
+                                <span v-for="st in recommendedMovie.streams" :key="st.id" class="inline-flex items-center px-3 py-1 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium">
+                                    {{ st.name }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 flex justify-end">
+                            <button @click="closeResult" class="text-gray-500 hover:text-gray-800 font-medium px-4 py-2 mr-2">Fechar</button>
+                            <button @click="getRecommendation" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition">
+                                Tentar Outro
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Not Found Modal -->
+             <div v-if="showResult && !recommendedMovie" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm" @click.self="closeResult">
+                <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+                    <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Poxa, nada encontrado!</h3>
+                    <p class="text-gray-600 mb-6">Não encontramos nenhum filme "nata" (>8.0) com essas características no momento.</p>
+                    <button @click="closeResult" class="bg-gray-800 hover:bg-gray-900 text-white font-medium py-2 px-6 rounded-lg transition">
+                        Tentar outra combinação
+                    </button>
+                </div>
+             </div>
+
+        </main>
+
+        <footer class="mt-auto pt-10 text-center text-gray-400 text-sm">
+            <p>&copy; 2026 Meu Site - Projeto Filme Misterioso</p>
+        </footer>
+    </div>
+    {% endverbatim %}
+
+    <script>
+        const { createApp, ref, onMounted } = Vue
+
+        createApp({
+            setup() {
+                const streams = ref([])
+                const genres = ref([])
+                const selectedStream = ref(null)
+                const selectedGenre = ref(null)
+                const recommendedMovie = ref(null)
+                const showResult = ref(false)
+                
+                const loadingStreams = ref(true)
+                const loadingGenres = ref(true)
+                const loadingRecommendation = ref(false)
+
+                const fetchStreams = async () => {
+                    try {
+                        const res = await fetch('/api/streams/')
+                        streams.value = await res.json()
+                    } catch (e) {
+                        console.error(e)
+                    } finally {
+                        loadingStreams.value = false
+                    }
+                }
+
+                const fetchGenres = async () => {
+                    try {
+                        const res = await fetch('/api/genres/')
+                        genres.value = await res.json()
+                    } catch (e) {
+                        console.error(e)
+                    } finally {
+                        loadingGenres.value = false
+                    }
+                }
+
+                const selectStream = (stream) => {
+                    selectedStream.value = stream
+                }
+
+                const selectGenre = (genre) => {
+                    selectedGenre.value = genre
+                }
+
+                const getRecommendation = async () => {
+                    if (!selectedStream.value || !selectedGenre.value) return
+                    
+                    loadingRecommendation.value = true
+                    recommendedMovie.value = null
+                    
+                    try {
+                        const url = `/api/recommend/?stream_id=${selectedStream.value.id}&genre_id=${selectedGenre.value.id}`
+                        const res = await fetch(url)
+                        
+                        if (res.ok) {
+                            recommendedMovie.value = await res.json()
+                        } else {
+                            // 404 or other error
+                            recommendedMovie.value = null
+                        }
+                        showResult.value = true
+                    } catch (e) {
+                        console.error(e)
+                    } finally {
+                        loadingRecommendation.value = false
+                    }
+                }
+
+                const closeResult = () => {
+                    showResult.value = false
+                    // optional: reset selection? no, keep it for easier retry
+                }
+
+                onMounted(() => {
+                    fetchStreams()
+                    fetchGenres()
+                })
+
+                return {
+                    streams,
+                    genres,
+                    selectedStream,
+                    selectedGenre,
+                    recommendedMovie,
+                    showResult,
+                    loadingStreams,
+                    loadingGenres,
+                    loadingRecommendation,
+                    selectStream,
+                    selectGenre,
+                    getRecommendation,
+                    closeResult
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
