@@ -3,8 +3,8 @@ import django
 import sys
 
 # Setup Django environment
-sys.path.append('/Users/gabeecwb/Projects/meu_site')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'meu_site.settings')
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from filmes.models import Movie, Genre, StreamingPlatform
